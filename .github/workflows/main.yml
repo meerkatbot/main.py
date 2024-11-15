@@ -2,8 +2,8 @@ name: Run Python Script
 
 on:
   schedule:
-    - cron: "*/10 * * * *"  # This sets the script to run every 10 minutes
-  workflow_dispatch:  # Allows manual triggering of the workflow
+    - cron: "*/10 * * * *"  # Runs every 10 minutes
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   run:
@@ -16,12 +16,22 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.x'  # Use Python 3.x
+          python-version: '3.x'
+      
+      - name: Verify Python version
+        run: python --version  # Confirm Python version
 
       - name: Install dependencies
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          echo "Checking for requirements.txt file..."
+          if [ -f requirements.txt ]; then
+            echo "Installing dependencies from requirements.txt"
+            pip install -r requirements.txt
+          else
+            echo "No requirements.txt found, skipping dependency installation."
+          fi
 
       - name: Run Python script
         run: |
+          echo "Starting Python script..."
           python main.py
