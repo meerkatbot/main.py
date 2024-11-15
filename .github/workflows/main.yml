@@ -1,0 +1,27 @@
+name: Run Python Script
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"  # This sets the script to run every 10 minutes
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'  # Use Python 3.x
+
+      - name: Install dependencies
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Python script
+        run: |
+          python main.py
