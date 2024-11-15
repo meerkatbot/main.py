@@ -1,15 +1,3 @@
-import subprocess
-import sys
-
-# Install necessary libraries
-required_libraries = [
-    "telethon",
-    "beautifulsoup4",
-    "requests"
-]
-
-for lib in required_libraries:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
 import os
 import random
 import asyncio
