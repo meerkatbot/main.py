@@ -10,7 +10,7 @@ required_libraries = [
 
 for lib in required_libraries:
     subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
-  import os
+import os
 import random
 import asyncio
 import requests
