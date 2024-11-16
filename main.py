@@ -1,78 +1,83 @@
-import os
 import asyncio
 from telethon import TelegramClient
 from telethon.tl.functions.messages import GetHistoryRequest
-from datetime import datetime, timedelta
 
 # Telegram user credentials
 api_id = "27864178"
-api_hash = "dc0774fbe5aebc3871d5edb5069deb2c"
-source_channel = "honkai_genshin_arts"
-target_channel = "@oasisnewchannel"
+api_hash = "7725666062:AAFDvCGRAoyZW_L1-Irszm_I40-c14XKl4Y"
+source_channels = [
+    "@CoingraphNews",
+    "https://t.me/tapswapcode6",
+    "https://t.me/MajorDurovPuzzlle",
+    "https://t.me/CryptoPlusAr",
+    "https://t.me/CryptoWhalesYoutube",
+    "https://t.me/MemefiCode",
+]
+target_channel = "@xeiden_news"
 
-# Path to the file storing the last processed message ID
-LAST_MESSAGE_FILE = 'last_message_id.txt'
+# Set to store IDs of processed messages to avoid duplicates
+processed_message_ids = set()
 
-# Function to load the last message ID from the file
-def load_last_message_id():
-    if os.path.exists(LAST_MESSAGE_FILE):
-        with open(LAST_MESSAGE_FILE, 'r') as file:
-            return int(file.read().strip())
-    return 0  # Default to 0 if the file doesn't exist
 
-# Function to save the last message ID to the file
-def save_last_message_id(message_id):
-    with open(LAST_MESSAGE_FILE, 'w') as file:
-        file.write(str(message_id))
-
-async def download_and_schedule(api_id, api_hash, source_channel, target_channel):
+async def check_and_forward_posts(api_id, api_hash, source_channels, target_channel):
+    """Check for new posts in source channels and forward them to the target channel."""
     client = TelegramClient('session', api_id, api_hash)
     await client.start()
 
-    # Initialize schedule and last message ID
-    next_scheduled_time = datetime.now()
-    last_message_id = load_last_message_id()
+    try:
+        while True:
+            for source_channel in source_channels:
+                print(f"Checking channel: {source_channel}")
+                try:
+                    # Fetch recent messages from the current source channel
+                    messages = await client(GetHistoryRequest(
+                        peer=source_channel,
+                        limit=10,  # Fetch the last 10 messages
+                        offset_date=None,
+                        offset_id=0,
+                        max_id=0,
+                        min_id=0,
+                        add_offset=0,
+                        hash=0
+                    ))
 
-    while True:
-        # Fetch message history from the source channel
-        messages = await client(GetHistoryRequest(
-            peer=source_channel,
-            limit=10,  # Fetch 10 messages
-            offset_id=last_message_id,
-            offset_date=None,
-            max_id=0,
-            min_id=0,
-            add_offset=0,
-            hash=0
-        ))
+                    for message in messages.messages:
+                        if message.id not in processed_message_ids:
+                            # Determine the content of the message
+                            if message.photo:
+                                caption = message.message or ""  # Use caption if available
+                                content_to_post = caption
+                            elif message.message:
+                                content_to_post = message.message
+                            else:
+                                content_to_post = None  # Skip messages with no content
 
-        # Process messages in order
-        for message in sorted(messages.messages, key=lambda x: x.id):
-            if message.photo and message.id > last_message_id:
-                now = datetime.now()
-                if now < next_scheduled_time:
-                    await asyncio.sleep((next_scheduled_time - now).total_seconds())
+                            # Skip messages containing "Telegram | Twitter"
+                            if content_to_post and "Telegram | Twitter" in content_to_post:
+                                print(f"Skipped message containing 'Telegram | Twitter': {content_to_post}")
+                                continue
 
-                # Download the media and prepare to send
-                file = await client.download_media(message.photo)
-                caption = message.message or ""
-                
-                # Send the file to the target channel
-                await client.send_file(target_channel, file, caption=caption)
-                
-                print(f"Posted image with caption: '{caption}' at {datetime.now().strftime('%H:%M')} (scheduled for {next_scheduled_time.strftime('%H:%M')})")
+                            # Forward the message to the target channel
+                            if message.photo:
+                                await client.forward_messages(target_channel, message)
+                                print(f"Forwarded image with caption: {caption}")
+                            elif message.message:
+                                await client.send_message(target_channel, message.message)
+                                print(f"Posted text: {message.message}")
 
-                # Update last_message_id to avoid reposting the same message
-                last_message_id = message.id
+                            # Mark this message as processed
+                            processed_message_ids.add(message.id)
 
-                # Save updated last_message_id to the file
-                save_last_message_id(last_message_id)
+                except Exception as e:
+                    print(f"Error checking channel {source_channel}: {e}")
 
-                # Schedule the next post exactly 1 hour after the last post
-                next_scheduled_time += timedelta(hours=1)
+            # Wait for 10 seconds before checking again
+            await asyncio.sleep(10)
 
-        # Sleep for a while before fetching new messages
-        await asyncio.sleep(600)  # Sleep for 10 minutes
+    finally:
+        await client.disconnect()
 
-# Run the async function
-asyncio.run(download_and_schedule(api_id, api_hash, source_channel, target_channel))
+
+# Execute the async function
+if __name__ == "__main__":
+    asyncio.run(check_and_forward_posts(api_id, api_hash, source_channels, target_channel))
